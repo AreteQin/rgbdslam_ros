@@ -6,7 +6,7 @@
 namespace rgbd_slam {
     Frontend::Frontend() {}
 
-    bool Frontend::AddFrame(std::shared_ptr <Frame> frame) {
+    bool Frontend::AddFrame(std::shared_ptr<Frame> frame) {
         current_frame_ = frame;
         bool success = Track();
         return success;
@@ -27,7 +27,7 @@ namespace rgbd_slam {
             ExtractFeatures();
             BuildInitialMap();
         }
-        LOG(INFO)<<"T_cur:\n"<<current_frame_->Pose().matrix();
+        LOG(INFO) << "T_cur:\n" << current_frame_->Pose().matrix();
         InsertKeyframe();
         return true;
     }
@@ -45,13 +45,12 @@ namespace rgbd_slam {
         return true;
     }
 
-    int Frontend::ExtractFeatures()
-    {
+    int Frontend::ExtractFeatures() {
         for (int k = 0; k < ref_frame_->color_image_.rows; k++) {
             for (int h = 0; h < ref_frame_->color_image_.cols; h++) {
-                double depth = ref_frame_->depth_image_.at<unsigned short>(k,h)/DEPTH_SCALE;
-                LOG(INFO)<<"depth: "<<depth;
+                double depth = ref_frame_->depth_image_.at<unsigned short>(k, h) / DEPTH_SCALE;
                 double color = ref_frame_->color_image_.at<uchar>(k, h);
+
                 if (depth < MIN_DEPTH || depth > MAX_DEPTH)
                     continue;
                 ref_frame_->depth_ref_.push_back(depth);
@@ -72,8 +71,8 @@ namespace rgbd_slam {
 
     int Frontend::EstimateCurrentPose() {
         // 构建图优化，先设定g2o
-        typedef g2o::BlockSolver <g2o::BlockSolverTraits<6, 1>> BlockSolverType;
-        typedef g2o::LinearSolverDense <BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
+        typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 1>> BlockSolverType;
+        typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
         // 梯度下降方法，可以从GN, LM, DogLeg 中选
         auto solver = new g2o::OptimizationAlgorithmGaussNewton(
                 g2o::make_unique<BlockSolverType>(
@@ -159,16 +158,15 @@ namespace rgbd_slam {
 
     bool Frontend::AddNewMapPoints() {
         Sophus::SE3 ref_Twc = ref_frame_->Pose().inverse();
-        for (size_t i = 0; i < ref_frame_->num_good_points_; ++i) {
+        for (int i = 0; i < ref_frame_->num_good_points_; ++i) {
             if (ref_frame_->features_[i] == nullptr)
                 continue;
             // create map point from depth map
             Eigen::Vector3d position_in_camera =
                     ref_frame_->depth_ref_[i] * Eigen::Vector3d(
-                            (ref_frame_->features_[i]->pixel_position_.pt.x -
-                             K_()(0, 2)) / K_()(0, 0),
-                            (ref_frame_->features_[i]->pixel_position_.pt.y -
-                             K_()(1, 2)) / K_()(1, 1), 1);
+                            (ref_frame_->features_[i]->pixel_position_.pt.x - K_()(0, 2)) / K_()(0, 0),
+                            (ref_frame_->features_[i]->pixel_position_.pt.y - K_()(1, 2)) / K_()(1, 1),
+                            1);
             if (position_in_camera[2] > 0) {
                 auto new_map_point = MapPoint::CreateNewMappoint();
                 new_map_point->SetPosition(ref_Twc * position_in_camera);

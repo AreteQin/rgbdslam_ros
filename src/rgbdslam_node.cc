@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
             ("/rgbdslam/pointcloud", 1);
 
     std::shared_ptr <rgbd_slam::Dataset> dataset(
-            new rgbd_slam::Dataset("/home/qin/Ubuntu/mannequin_face_2"));
+            new rgbd_slam::Dataset("/home/qin/Downloads/mannequin_face_2"));
 
     if (dataset->Initialize()) {
         std::shared_ptr <rgbd_slam::VisualOdometry> vo(
