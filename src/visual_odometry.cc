@@ -25,7 +25,7 @@ namespace rgbd_slam {
         std::shared_ptr <Frame> new_frame = frame;
         if (new_frame == nullptr)
             return false;
-        LOG(INFO) << "VO is running -------------------------------------------";
+        LOG(INFO) << "VO is running ---------------------------------------";
         bool success = frontend_->AddFrame(new_frame);
         return success;
     }

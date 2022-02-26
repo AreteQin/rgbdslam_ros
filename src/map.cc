@@ -2,7 +2,7 @@
 #include "feature.h"
 
 namespace rgbd_slam {
-    void Map::InsertKeyframe(std::shared_ptr <Frame> frame) {
+    void Map::InsertKeyframe(std::shared_ptr<Frame> frame) {
         current_frame_ = frame;
 //        // if the id of current frame is not in the map, then add it into the map, otherwise update the keyframes_
 //        if (keyframes_.find(frame->keyframe_id_) == keyframes_.end()) // .end() is throughout the unordered map
@@ -23,7 +23,7 @@ namespace rgbd_slam {
 //        }
     }
 
-    void Map::InsertMapPoint(std::shared_ptr <MapPoint> map_point) {
+    void Map::InsertMapPoint(std::shared_ptr<MapPoint> map_point) {
         if (landmarks_.find(map_point->id_) == landmarks_.end()) {
             landmarks_.insert(make_pair(map_point->id_, map_point));
             active_landmarks_.insert(make_pair(map_point->id_, map_point));
@@ -56,7 +56,7 @@ namespace rgbd_slam {
             }
         }
         const double min_distance_threshold = 0.2;
-        std::shared_ptr <Frame> frame_to_remove = nullptr;
+        std::shared_ptr<Frame> frame_to_remove = nullptr;
         // if the nearest frame is nearer than min_distance_threshold, remove it
         if (min_distance < min_distance_threshold) {
             frame_to_remove = keyframes_.at(min_kf_id);
@@ -75,16 +75,22 @@ namespace rgbd_slam {
         LOG(INFO) << "Map::CleanMap() undefined: " << min_observed_times_;
     }
 
-    pcl::PointCloud <pcl::PointXYZRGB>
-    Map::GetPointCloud(Eigen::Matrix<double, 3, 3> K) {
+    pcl::PointCloud<pcl::PointXYZRGB> Map::GetPointCloud(Eigen::Matrix<double, 3, 3> K) {
 
-        std::unique_lock <std::mutex> lock(map_mutex_);
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr
-                point_cloud(new pcl::PointCloud <pcl::PointXYZRGB>);
+        std::unique_lock<std::mutex> lock(map_mutex_);
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
         point_cloud->header.frame_id = "map";
         pcl::PointXYZRGB p;
+
+        // a rotation of Pi/2 degree along the x axis, and so on
+        Eigen::Matrix3d R1 = Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
+        Eigen::Matrix3d R2 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d(0, 1, 0)).toRotationMatrix();
+        Eigen::Matrix3d R3 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d(0, 0, 1)).toRotationMatrix();
+        Eigen::Matrix3d R = R3*R2*R1;
+        Eigen::Vector3d t(0, -10, 3);
+        Sophus::SE3 T_wd(R,t);
         for (auto &landmark: active_landmarks_) {
-            auto pointWorld = landmark.second->Position();
+            auto pointWorld = T_wd * landmark.second->Position();
             auto color = landmark.second->color_;
             p.x = pointWorld[0];
             p.y = pointWorld[1];
@@ -94,7 +100,9 @@ namespace rgbd_slam {
             p.r = color;
             point_cloud->points.push_back(p);
         }
-        LOG(INFO) << "created " << point_cloud->size() << " points";
+        LOG(INFO) << "published " << point_cloud->size() << " points to ROS";
         return *point_cloud;
     }
+
+
 }

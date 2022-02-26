@@ -17,9 +17,9 @@
 #include <atomic> // used for multithreading
 #include <glog/logging.h> // also a dependency of ceres
 #include "pcl_ros/point_cloud.h"
-static const int DEPTH_SCALE = 256;
-static const int MIN_DEPTH = 5*256/DEPTH_SCALE;
-static const int MAX_DEPTH = 250*256/DEPTH_SCALE;
+static const int DEPTH_SCALE = 512;
+static const int MIN_DEPTH = 5;
+static const int MAX_DEPTH = 250;
 static const int G2O_OPTIMIZATION_ITERATION = 5;
 // unknown usage
 // #include <typeinfo>

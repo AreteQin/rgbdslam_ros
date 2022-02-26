@@ -48,10 +48,10 @@ namespace rgbd_slam {
     int Frontend::ExtractFeatures() {
         for (int k = 0; k < ref_frame_->color_image_.rows; k++) {
             for (int h = 0; h < ref_frame_->color_image_.cols; h++) {
-                double depth = ref_frame_->depth_image_.at<unsigned short>(k, h) / DEPTH_SCALE;
+                double depth = ref_frame_->depth_image_.at<unsigned short>(k, h);
                 double color = ref_frame_->color_image_.at<uchar>(k, h);
 
-                if (depth < MIN_DEPTH || depth > MAX_DEPTH)
+                if (depth == 0)
                     continue;
                 ref_frame_->depth_ref_.push_back(depth);
                 ref_frame_->color_ref_.push_back(color);
@@ -132,12 +132,12 @@ namespace rgbd_slam {
     }
 
     bool Frontend::BuildInitialMap() {
-        for (size_t i = 0; i < ref_frame_->num_good_points_; ++i) {
+        for (unsigned int i = 0; i < ref_frame_->num_good_points_; ++i) {
             if (ref_frame_->features_[i] == nullptr)
                 continue;
             // create map point from depth map
             Eigen::Matrix<double, 3, 1> position_in_world =
-                    ref_frame_->depth_ref_[i] * Eigen::Vector3d(
+                    ref_frame_->depth_ref_[i]/DEPTH_SCALE * Eigen::Vector3d(
                             (ref_frame_->features_[i]->pixel_position_.pt.x -
                              K_()(0, 2)) / K_()(0, 0),
                             (ref_frame_->features_[i]->pixel_position_.pt.y -
@@ -147,6 +147,11 @@ namespace rgbd_slam {
                 new_map_point->SetPosition(position_in_world);
                 ref_frame_->features_[i]->map_point_ = new_map_point;
                 map_->InsertMapPoint(new_map_point);
+//                LOG(INFO) << "u,v,d: "
+//                          << ref_frame_->features_[i]->pixel_position_.pt.x<<","
+//                          << ref_frame_->features_[i]->pixel_position_.pt.y<<","
+//                          << ref_frame_->depth_ref_[i];
+//                LOG(INFO) << "x,y,z: \n" << position_in_world;
             }
         }
         map_->InsertKeyframe(ref_frame_);
@@ -158,12 +163,12 @@ namespace rgbd_slam {
 
     bool Frontend::AddNewMapPoints() {
         Sophus::SE3 ref_Twc = ref_frame_->Pose().inverse();
-        for (int i = 0; i < ref_frame_->num_good_points_; ++i) {
+        for (unsigned int i = 0; i < ref_frame_->num_good_points_; ++i) {
             if (ref_frame_->features_[i] == nullptr)
                 continue;
             // create map point from depth map
             Eigen::Vector3d position_in_camera =
-                    ref_frame_->depth_ref_[i] * Eigen::Vector3d(
+                    ref_frame_->depth_ref_[i]/DEPTH_SCALE * Eigen::Vector3d(
                             (ref_frame_->features_[i]->pixel_position_.pt.x - K_()(0, 2)) / K_()(0, 0),
                             (ref_frame_->features_[i]->pixel_position_.pt.y - K_()(1, 2)) / K_()(1, 1),
                             1);
