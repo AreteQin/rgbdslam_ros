@@ -3,6 +3,7 @@
 
 #include "common_include.h"
 #include "feature.h"
+#include "mappoint.h"
 
 namespace rgbd_slam
 {
@@ -11,7 +12,7 @@ namespace rgbd_slam
     public:
         unsigned long id_ = 0;
         bool is_keyframe_ = false;
-        double time_stamp_;
+        double time_stamp_{};
         Sophus::SE3d pose_;
         std::mutex frame_mutex_;
         cv::Mat color_image_, depth_image_;
@@ -35,6 +36,7 @@ namespace rgbd_slam
         }
         void SetKeyframe();
         static std::shared_ptr<Frame> CreateFrame();
+        pcl::PointCloud<pcl::PointXYZRGB> GetPointCloud(Eigen::Matrix<double, 3, 3> K);
     };
 }
 #endif

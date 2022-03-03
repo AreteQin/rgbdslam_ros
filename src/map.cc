@@ -1,5 +1,6 @@
 #include "map.h"
 #include "feature.h"
+#include <pcl/common/transforms.h>
 
 namespace rgbd_slam {
     void Map::InsertKeyframe(std::shared_ptr<Frame> frame) {
@@ -82,15 +83,20 @@ namespace rgbd_slam {
         point_cloud->header.frame_id = "map";
         pcl::PointXYZRGB p;
 
-        // a rotation of Pi/2 degree along the x axis, and so on
-        Eigen::Matrix3d R1 = Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
-        Eigen::Matrix3d R2 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d(0, 1, 0)).toRotationMatrix();
-        Eigen::Matrix3d R3 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d(0, 0, 1)).toRotationMatrix();
-        Eigen::Matrix3d R = R3*R2*R1;
-        Eigen::Vector3d t(0, -10, 3);
-        Sophus::SE3 T_wd(R,t);
+        // R1: a rotation of Pi/2 degree along the x axis, and so on
+//        Eigen::Matrix3d R1 = Eigen::AngleAxisd(M_PI / 2, Eigen::Vector3d(1, 0, 0)).toRotationMatrix();
+//        Eigen::Matrix3d R2 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d(0, 1, 0)).toRotationMatrix();
+//        Eigen::Matrix3d R3 = Eigen::AngleAxisd(M_PI, Eigen::Vector3d(0, 0, 1)).toRotationMatrix();
+//        Eigen::Matrix3d R = R3*R2*R1;
+//        Eigen::Vector3d t(0, 0, 0);
+//        Eigen::Matrix4d T_wd;
+//        T_wd.block<3,3>(0,0) = R;
+//        T_wd.block<3,1>(0,2) = t;
+//        LOG(INFO)<<"T_wd: \n"<<T_wd;
+
         for (auto &landmark: active_landmarks_) {
-            auto pointWorld = T_wd * landmark.second->Position();
+            //auto pointWorld = T_wd * landmark.second->Position();
+            auto pointWorld = landmark.second->position_;
             auto color = landmark.second->color_;
             p.x = pointWorld[0];
             p.y = pointWorld[1];
@@ -100,6 +106,7 @@ namespace rgbd_slam {
             p.r = color;
             point_cloud->points.push_back(p);
         }
+//        pcl::transformPointCloud(*point_cloud, *point_cloud, T_wd);
         LOG(INFO) << "published " << point_cloud->size() << " points to ROS";
         return *point_cloud;
     }

@@ -45,10 +45,8 @@ namespace rgbd_slam {
         // less than "min_observed_times_"
         void CleanMap();
 
-        // return the point cloud generated from current reference frame in
-        // frontend
-        pcl::PointCloud <pcl::PointXYZRGB>
-        GetPointCloud(Eigen::Matrix<double, 3, 3> K);
+        // return the point cloud generated from all map points
+        pcl::PointCloud <pcl::PointXYZRGB> GetPointCloud(Eigen::Matrix<double, 3, 3> K);
 
     private:
         void RemoveOldKeyframe();
