@@ -27,7 +27,7 @@ namespace rgbd_slam
         return new_frame;
     }
 
-    pcl::PointCloud<pcl::PointXYZRGB> Frame::GetPointCloud(Eigen::Matrix<double, 3, 3> K) {
+    pcl::PointCloud<pcl::PointXYZRGB> Frame::GetPointCloud() {
 
         std::unique_lock<std::mutex> lock(frame_mutex_);
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);

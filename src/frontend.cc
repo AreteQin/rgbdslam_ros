@@ -13,30 +13,43 @@ namespace rgbd_slam {
     }
 
     bool Frontend::Track() {
-        if (ref_frame_) {
-            current_frame_->SetPosition(relative_motion_ * ref_frame_->Pose());
-            ExtractFeatures();
+        if (last_kf_) {
+            current_frame_->SetPosition(relative_motion_ * last_kf_->Pose());
+//            ExtractFeatures();
             num_generated_edges_ = EstimateCurrentPose();
             LOG(INFO) << "generated edges: " << num_generated_edges_;
             relative_motion_ =
-                    current_frame_->Pose() * (ref_frame_->Pose().inverse());
-            AddNewMapPoints();
-            ref_frame_ = current_frame_;
+                    current_frame_->Pose() * (last_kf_->Pose().inverse());
+//            ref_frame_ = current_frame_;
         } else {
-            ref_frame_ = current_frame_;
+            InsertKeyframe(2);
+            last_kf_ = current_frame_;
             ExtractFeatures();
-            BuildInitialMap();
+            AddNewMapPoints();
+            return true;
         }
         LOG(INFO) << "T_cur:\n" << current_frame_->Pose().matrix();
-        InsertKeyframe();
+        double euclidean_distance = sqrt(
+                0.5 * pow(relative_motion_.translation().x(), 2) +
+                0.5 * pow(relative_motion_.translation().y(), 2) +
+                0.5 * pow(relative_motion_.translation().z(), 2) +
+                pow(relative_motion_.unit_quaternion().x(), 2) +
+                pow(relative_motion_.unit_quaternion().y(), 2) +
+                pow(relative_motion_.unit_quaternion().z(), 2) +
+                pow(relative_motion_.unit_quaternion().w(), 2));
+        LOG(INFO)<<"euclidean distance: "<<euclidean_distance;
+        if (InsertKeyframe(euclidean_distance)) {
+            last_kf_ = current_frame_;
+            ExtractFeatures();
+            AddNewMapPoints();
+        }
         return true;
     }
 
-    bool Frontend::InsertKeyframe() {
-        // if (num_generated_edges_ >= num_edges_needed_for_keyframe_)
-        // {
-        //     return false; // still have enough points
-        // }
+    bool Frontend::InsertKeyframe(double euclidean_distance) {
+        if (euclidean_distance < 1.0001) {
+            return false;
+        }
         current_frame_->SetKeyframe();
         map_->InsertKeyframe(current_frame_);
         LOG(INFO) << "Set frame " << current_frame_->id_ << " as keyframe "
@@ -46,27 +59,27 @@ namespace rgbd_slam {
     }
 
     int Frontend::ExtractFeatures() {
-        for (int k = 0; k < ref_frame_->color_image_.rows; k++) {
-            for (int h = 0; h < ref_frame_->color_image_.cols; h++) {
-                double depth = ref_frame_->depth_image_.at<unsigned short>(k, h);
-                double color = ref_frame_->color_image_.at<uchar>(k, h);
+        for (int k = 0; k < last_kf_->color_image_.rows; k++) {
+            for (int h = 0; h < last_kf_->color_image_.cols; h++) {
+                double depth = last_kf_->depth_image_.at<unsigned short>(k, h);
+                double color = last_kf_->color_image_.at<uchar>(k, h);
 
                 if (depth == 0)
                     continue;
-                ref_frame_->depth_ref_.push_back(depth);
-                ref_frame_->color_ref_.push_back(color);
+                last_kf_->depth_ref_.push_back(depth);
+                last_kf_->color_ref_.push_back(color);
 
-                ref_frame_->features_.push_back(std::shared_ptr<Feature>(
+                last_kf_->features_.push_back(std::shared_ptr<Feature>(
                         // 1.0 is keypoint diameter
-                        new Feature(ref_frame_, cv::KeyPoint(h, k, 1.0),
+                        new Feature(last_kf_, cv::KeyPoint(h, k, 1.0),
                                     color)));
-                ref_frame_->num_good_points_++;
+                last_kf_->num_good_points_++;
             }
         }
-        // return ref_frame_->depth_ref_.size(); it is working or not?
-        LOG(INFO) << "Generated " << ref_frame_->num_good_points_
+        // return last_kf_->depth_ref_.size(); it is working or not?
+        LOG(INFO) << "Generated " << last_kf_->num_good_points_
                   << " 3D points in the last image.";
-        return ref_frame_->num_good_points_;
+        return last_kf_->num_good_points_;
     }
 
     int Frontend::EstimateCurrentPose() {
@@ -93,14 +106,14 @@ namespace rgbd_slam {
         // edges counter
         int edge_index = 1;
 
-        for (size_t i = 0; i < ref_frame_->features_.size(); ++i) {
+        for (size_t i = 0; i < last_kf_->features_.size(); ++i) {
             Eigen::Vector2d pixel_ref(
-                    ref_frame_->features_[i]->pixel_position_.pt.x,
-                    ref_frame_->features_[i]->pixel_position_.pt.y);
+                    last_kf_->features_[i]->pixel_position_.pt.x,
+                    last_kf_->features_[i]->pixel_position_.pt.y);
             EdgeProjectionPoseOnly *edge = new EdgeProjectionPoseOnly(K,
                                                                       pixel_ref,
-                                                                      ref_frame_->color_ref_[i],
-                                                                      ref_frame_->depth_ref_[i],
+                                                                      last_kf_->color_ref_[i],
+                                                                      last_kf_->depth_ref_[i],
                                                                       current_frame_->color_image_,
                                                                       current_frame_->depth_image_);
 
@@ -109,7 +122,7 @@ namespace rgbd_slam {
 
             // 深度乘以归一化坐标就得到了相机坐标系下的三维点
             Eigen::Vector3d position_in_ref_cam =
-                    ref_frame_->depth_ref_[i] * Eigen::Vector3d(
+                    last_kf_->depth_ref_[i] * Eigen::Vector3d(
                             (pixel_ref[0] - K_()(0, 2)) / K_()(0, 0),
                             (pixel_ref[1] - K_()(1, 2)) / K_()(1, 1),
                             1);
@@ -117,7 +130,7 @@ namespace rgbd_slam {
             Eigen::Vector3d position_in_cur_cam =
                     vertex_pose->estimate() * position_in_ref_cam;
             Eigen::Matrix<double, 2, 1> measurements;
-            measurements << ref_frame_->color_ref_[i], position_in_cur_cam[2];
+            measurements << last_kf_->color_ref_[i], position_in_cur_cam[2];
             edge->setMeasurement(measurements);
             edge->setInformation(Eigen::Matrix<double, 2, 2>::Identity());
             optimizer.addEdge(edge);
@@ -127,60 +140,60 @@ namespace rgbd_slam {
         optimizer.initializeOptimization();
         optimizer.optimize(G2O_OPTIMIZATION_ITERATION);
         current_frame_->SetPosition(
-                vertex_pose->estimate() * ref_frame_->Pose());
+                vertex_pose->estimate() * last_kf_->Pose());
         return edge_index;
     }
 
-    bool Frontend::BuildInitialMap() {
-        for (unsigned int i = 0; i < ref_frame_->num_good_points_; ++i) {
-            if (ref_frame_->features_[i] == nullptr)
-                continue;
-            // create map point from depth map
-            Eigen::Matrix<double, 3, 1> position_in_world =
-                    ref_frame_->depth_ref_[i]/DEPTH_SCALE * Eigen::Vector3d(
-                            (ref_frame_->features_[i]->pixel_position_.pt.x -
-                             K_()(0, 2)) / K_()(0, 0),
-                            (ref_frame_->features_[i]->pixel_position_.pt.y -
-                             K_()(1, 2)) / K_()(1, 1), 1);
-            if (position_in_world[2] > 0) {
-                auto new_map_point = MapPoint::CreateNewMappoint();
-                new_map_point->SetPosition(position_in_world);
-                ref_frame_->features_[i]->map_point_ = new_map_point;
-                map_->InsertMapPoint(new_map_point);
-//                LOG(INFO) << "u,v,d: "
-//                          << ref_frame_->features_[i]->pixel_position_.pt.x<<","
-//                          << ref_frame_->features_[i]->pixel_position_.pt.y<<","
-//                          << ref_frame_->depth_ref_[i];
-//                LOG(INFO) << "x,y,z: \n" << position_in_world;
-            }
-        }
-        map_->InsertKeyframe(ref_frame_);
-        //backend_->UpdateMap();
-        LOG(INFO) << "Build initial map with "
-                  << current_frame_->num_good_points_ << " points.";
-        return true;
-    }
+//    bool Frontend::BuildInitialMap() {
+//        for (unsigned int i = 0; i < ref_frame_->num_good_points_; ++i) {
+//            if (ref_frame_->features_[i] == nullptr)
+//                continue;
+//            // create map point from depth map
+//            Eigen::Matrix<double, 3, 1> position_in_world =
+//                    ref_frame_->depth_ref_[i]/DEPTH_SCALE * Eigen::Vector3d(
+//                            (ref_frame_->features_[i]->pixel_position_.pt.x -
+//                             K_()(0, 2)) / K_()(0, 0),
+//                            (ref_frame_->features_[i]->pixel_position_.pt.y -
+//                             K_()(1, 2)) / K_()(1, 1), 1);
+//            if (position_in_world[2] > 0) {
+//                auto new_map_point = MapPoint::CreateNewMappoint();
+//                new_map_point->SetPosition(position_in_world);
+//                ref_frame_->features_[i]->map_point_ = new_map_point;
+//                map_->InsertMapPoint(new_map_point);
+////                LOG(INFO) << "u,v,d: "
+////                          << ref_frame_->features_[i]->pixel_position_.pt.x<<","
+////                          << ref_frame_->features_[i]->pixel_position_.pt.y<<","
+////                          << ref_frame_->depth_ref_[i];
+////                LOG(INFO) << "x,y,z: \n" << position_in_world;
+//            }
+//        }
+//        map_->InsertKeyframe(ref_frame_);
+//        //backend_->UpdateMap();
+//        LOG(INFO) << "Build initial map with "
+//                  << current_frame_->num_good_points_ << " points.";
+//        return true;
+//    }
 
     bool Frontend::AddNewMapPoints() {
-        Sophus::SE3 ref_Twc = ref_frame_->Pose().inverse();
-        for (unsigned int i = 0; i < ref_frame_->num_good_points_; ++i) {
-            if (ref_frame_->features_[i] == nullptr)
+        Sophus::SE3 ref_Twc = last_kf_->Pose().inverse();
+        for (unsigned int i = 0; i < last_kf_->num_good_points_; ++i) {
+            if (last_kf_->features_[i] == nullptr)
                 continue;
             // create map point from depth map
             Eigen::Vector3d position_in_camera =
-                    ref_frame_->depth_ref_[i]/DEPTH_SCALE * Eigen::Vector3d(
-                            (ref_frame_->features_[i]->pixel_position_.pt.x - K_()(0, 2)) / K_()(0, 0),
-                            (ref_frame_->features_[i]->pixel_position_.pt.y - K_()(1, 2)) / K_()(1, 1),
+                    last_kf_->depth_ref_[i] / DEPTH_SCALE * Eigen::Vector3d(
+                            (last_kf_->features_[i]->pixel_position_.pt.x - K_()(0, 2)) / K_()(0, 0),
+                            (last_kf_->features_[i]->pixel_position_.pt.y - K_()(1, 2)) / K_()(1, 1),
                             1);
             if (position_in_camera[2] > 0) {
                 auto new_map_point = MapPoint::CreateNewMappoint();
                 new_map_point->SetPosition(ref_Twc * position_in_camera);
-                ref_frame_->features_[i]->map_point_ = new_map_point;
+                last_kf_->features_[i]->map_point_ = new_map_point;
                 map_->InsertMapPoint(new_map_point);
             }
         }
-        LOG(INFO) << "Insert " << ref_frame_->num_good_points_ << " map points";
-        map_->InsertKeyframe(ref_frame_);
+        LOG(INFO) << "Insert " << last_kf_->num_good_points_ << " map points";
+        map_->InsertKeyframe(last_kf_);
         //backend_->UpdateMap();
         LOG(INFO) << "There are " << map_->GetAllLandmarks().size()
                   << " map points now";

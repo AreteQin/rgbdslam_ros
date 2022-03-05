@@ -36,7 +36,7 @@ namespace rgbd_slam
         }
         void SetKeyframe();
         static std::shared_ptr<Frame> CreateFrame();
-        pcl::PointCloud<pcl::PointXYZRGB> GetPointCloud(Eigen::Matrix<double, 3, 3> K);
+        pcl::PointCloud<pcl::PointXYZRGB> GetPointCloud();
     };
 }
 #endif

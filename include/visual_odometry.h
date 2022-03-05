@@ -20,7 +20,11 @@ namespace rgbd_slam {
 
         pcl::PointCloud <pcl::PointXYZRGB> GetPointCloud(){
 //            return map_->GetPointCloud(camera_color_->K());
-            return frontend_->GetCurrentFrame()->GetPointCloud(camera_color_->K());
+            return frontend_->GetCurrentFrame()->GetPointCloud();
+        }
+
+        Sophus::SE3d GetCurrentFramePose(){
+            return frontend_->GetCurrentFrame()->Pose();
         }
 
     private:

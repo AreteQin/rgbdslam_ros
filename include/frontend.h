@@ -47,11 +47,12 @@ namespace rgbd_slam {
         int EstimateCurrentPose();
 
         // insert current frame as a keyframe, return true if success
-        bool InsertKeyframe();
+        bool InsertKeyframe(double euclidean_distance);
 
         // build the initial map with single frame, return true if success
         bool BuildInitialMap();
 
+        // add new points into map generated from new keyframe, return true if success
         bool AddNewMapPoints();
 
         // number of inliers, used for determine new keyframe
@@ -61,7 +62,7 @@ namespace rgbd_slam {
         int num_edges_needed_for_keyframe_ = 2000;
 
         std::shared_ptr<Map> map_ = nullptr;
-        std::shared_ptr<Frame> ref_frame_ = nullptr;
+        std::shared_ptr<Frame> last_kf_ = nullptr;
         std::shared_ptr<Frame> current_frame_ = nullptr;
         std::shared_ptr<Camera> camera_color_ = nullptr;
         std::shared_ptr<Backend> backend_ = nullptr;
