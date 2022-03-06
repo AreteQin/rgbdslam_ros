@@ -15,6 +15,7 @@ namespace rgbd_slam {
     bool Frontend::Track() {
         if (last_kf_) {
             current_frame_->SetPosition(relative_motion_ * last_kf_->Pose());
+            LOG(INFO)<<"relative motion: \n"<<relative_motion_.matrix();
 //            ExtractFeatures();
             num_generated_edges_ = EstimateCurrentPose();
             LOG(INFO) << "generated edges: " << num_generated_edges_;
@@ -47,13 +48,16 @@ namespace rgbd_slam {
     }
 
     bool Frontend::InsertKeyframe(double euclidean_distance) {
-        if (euclidean_distance < 1.0001) {
+        if (euclidean_distance < MAX_EUCLIDEAN_DISTANCE) {
             return false;
         }
         current_frame_->SetKeyframe();
         map_->InsertKeyframe(current_frame_);
         LOG(INFO) << "Set frame " << current_frame_->id_ << " as keyframe "
                   << current_frame_->keyframe_id_;
+        Eigen::Matrix3d R = Eigen::AngleAxisd(0, Eigen::Vector3d(0, 0, 0)).toRotationMatrix();
+        Eigen::Vector3d t(0, 0, 0);
+        relative_motion_ = Sophus::SE3d(R, t);
         //backend_->UpdateMap();
         return true;
     }

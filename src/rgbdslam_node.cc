@@ -1,7 +1,6 @@
 #include "visual_odometry.h"
 #include "dataset.h"
 #include <ros/ros.h>
-#include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 
@@ -16,7 +15,7 @@ int main(int argc, char **argv) {
     geometry_msgs::TransformStamped transformStamped;
 
     std::shared_ptr<rgbd_slam::Dataset> dataset(
-            new rgbd_slam::Dataset("/home/qin/Downloads/training/mannequin_face_2"));
+            new rgbd_slam::Dataset("/home/qin/Downloads/training/sfm_house_loop"));
 
     if (dataset->Initialize()) {
         std::shared_ptr<rgbd_slam::VisualOdometry> vo(
@@ -33,7 +32,7 @@ int main(int argc, char **argv) {
             Sophus::SE3d pose = vo->GetCurrentFramePose();
 //            LOG(INFO) << "pose:-------------------------------------------------\n" << pose.matrix();
             transformStamped.header.stamp = ros::Time::now();
-            transformStamped.header.frame_id = "world";
+            transformStamped.header.frame_id = "map";
             transformStamped.child_frame_id = "camera";
             transformStamped.transform.translation.x = pose.matrix()(3, 0);
             transformStamped.transform.translation.y = pose.matrix()(3, 1);

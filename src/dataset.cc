@@ -45,11 +45,9 @@ namespace rgbd_slam
 
         // read images
         std::ifstream image_stamps(dataset_path_ + "/associated.txt");
-        int num_image_pairs = 0;
         if (!image_stamps)
         {
-            // LOG(ERROR) << "cannot find " << dataset_path_ << "/associated.txt";
-            std::cout << "cannot find " << dataset_path_ << "/associated.txt"<<std::endl;
+            LOG(ERROR) << "cannot find " << dataset_path_ << "/associated.txt";
             return false;
         }
         else // file exists
