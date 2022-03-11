@@ -51,18 +51,11 @@ namespace rgbd_slam {
                 const double &depth_ref,
                 const cv::Mat &current_image,
                 const cv::Mat &current_depth) : K_(K),
-                                                current_image_(
-                                                        current_image),
-                                                current_depth_(
-                                                        current_depth) {
-            point_position_ref = depth_ref *
-                                 Eigen::Vector3d(
-                                         (pixel_ref[0] -
-                                          K_(0, 2)) /
-                                         K_(0, 0),
-                                         (pixel_ref[1] -
-                                          K_(1, 2)) /
-                                         K_(1, 1), 1);
+                                                current_image_(current_image),
+                                                current_depth_(current_depth) {
+            point_position_ref_ = depth_ref * Eigen::Vector3d((pixel_ref[0] - K_(0, 2)) / K_(0, 0),
+                                                              (pixel_ref[1] - K_(1, 2)) / K_(1, 1),
+                                                              1);
         }
 
         void computeError() override {
@@ -72,13 +65,10 @@ namespace rgbd_slam {
             const VertexPose *v = dynamic_cast<VertexPose *>(_vertices[0]);
             Sophus::SE3d T = v->estimate();
             Eigen::Matrix<double, 3, 1> pixel_in_cur_cam =
-                    K_ * ((T * point_position_ref) /
-                          (T * point_position_ref)[2]);
-            double I2 = GetPixelValue(current_image_,
-                                      pixel_in_cur_cam[0],
-                                      pixel_in_cur_cam[1]);
-            double Z2 = current_depth_.at<unsigned short>
-                    (pixel_in_cur_cam[0], pixel_in_cur_cam[1]);
+                    K_ * ((T * point_position_ref_) /
+                          (T * point_position_ref_)[2]);
+            double I2 = GetPixelValue(current_image_, pixel_in_cur_cam[0], pixel_in_cur_cam[1]);
+            double Z2 = current_depth_.at<unsigned short>(pixel_in_cur_cam[0], pixel_in_cur_cam[1]);
             // if out of sight in current frame
             if (pixel_in_cur_cam[1] < 1 || pixel_in_cur_cam[1] > current_depth_.cols - 1
                 || pixel_in_cur_cam[0] < 1 || pixel_in_cur_cam[0] > current_depth_.rows - 1) {
@@ -89,7 +79,7 @@ namespace rgbd_slam {
                 _error(1, 0) = 0;
             } else {
                 _error(0, 0) = I2 - _measurement(0, 0);
-                _error(1, 0) = 10*(Z2 - _measurement(1, 0))/DEPTH_SCALE;
+                _error(1, 0) = 10 * (Z2 - _measurement(1, 0)) / DEPTH_SCALE;
             }
 //            LOG(INFO)<<"color error: "<<_error(0,0);
 //            LOG(INFO)<<"depth error: "<<_error(1,0);
@@ -103,19 +93,14 @@ namespace rgbd_slam {
         {
             const VertexPose *v = static_cast<VertexPose *>(_vertices[0]);
             Sophus::SE3d T = v->estimate();
-            Eigen::Vector3d position_in_cur_cam =
-                    T * point_position_ref;
+            Eigen::Vector3d position_in_cur_cam = T * point_position_ref_;
             double fx = K_(0, 0);
             double fy = K_(1, 1);
             double X = position_in_cur_cam[0];
             double Y = position_in_cur_cam[1];
             double Z = position_in_cur_cam[2];
-            double u_in_cur_pixel =
-                    fx * position_in_cur_cam[0] /
-                    position_in_cur_cam[2] + K_(0, 2);
-            double v_in_cur_pixel =
-                    fy * position_in_cur_cam[1] /
-                    position_in_cur_cam[2] + K_(1, 2);
+            double u_in_cur_pixel = fx * position_in_cur_cam[0] / position_in_cur_cam[2] + K_(0, 2);
+            double v_in_cur_pixel = fy * position_in_cur_cam[1] / position_in_cur_cam[2] + K_(1, 2);
             Eigen::Matrix<double, 1, 6> J_1, J_2, J_position_xi_Z;
 
             double Z_inv = 1.0 / Z, Z2_inv = Z_inv * Z_inv;
@@ -160,19 +145,12 @@ namespace rgbd_slam {
                     J_2[0], J_2[1], J_2[2], J_2[3], J_2[4], J_2[5];
         }
 
-        virtual bool read(std::istream &in)
+        bool read(std::istream &in) override {}
 
-        override {
-        }
-
-        virtual bool
-        write(std::ostream &out) const
-
-        override {
-        }
+        bool write(std::ostream &out) const override {}
 
     private:
-        Eigen::Matrix<double, 3, 1> point_position_ref;
+        Eigen::Matrix<double, 3, 1> point_position_ref_;
         Eigen::Matrix<double, 3, 3> K_;
         const cv::Mat current_image_;
         const cv::Mat current_depth_;

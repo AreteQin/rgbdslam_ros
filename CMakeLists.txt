@@ -32,6 +32,8 @@ find_package(G2O REQUIRED)
 include_directories(${G2O_INCLUDE_DIRS})
 find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
+Find_Package(Ceres REQUIRED)
+
 
 set(THIRD_PARTY_LIBS
         ${OpenCV_LIBS}
@@ -41,6 +43,7 @@ set(THIRD_PARTY_LIBS
         Sophus::Sophus
         ${GLOG_LIBRARIES}
         pthread
+        ${CERES_LIBRARIES}
         )
 
 ## Uncomment this if the package has a setup.py. This macro ensures

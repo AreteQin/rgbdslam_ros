@@ -20,7 +20,7 @@
 static const int DEPTH_SCALE = 512;
 static const int MIN_DEPTH = 5;
 static const int MAX_DEPTH = 250;
-static const int G2O_OPTIMIZATION_ITERATION = 5;
+static const int MAX_OPTIMIZATION_ITERATION = 5;
 static const double MAX_EUCLIDEAN_DISTANCE = 1.00005;
 // unknown usage
 // #include <typeinfo>
