@@ -32,9 +32,9 @@ namespace rgbd_slam {
             _estimate = Sophus::SE3d::exp(update_eigen) * _estimate;
         }
 
-        virtual bool read(std::istream &in) override {}
+        bool read(std::istream &in) override {return true;}
 
-        virtual bool write(std::ostream &out) const override {}
+        bool write(std::ostream &out) const override {return true;}
     };
 
     /// 定义仅优化位姿的一元边，2表示观测值的维度，Vec2表示观测值的数据类型是一个2×1的向量，
@@ -89,7 +89,7 @@ namespace rgbd_slam {
 //            LOG(INFO)<<"depth error Tukeys: "<<_error(1,0);
         }
 
-        virtual void linearizeOplus() override // 重写线性化函数，即得到泰勒展开e(x+delta_x)=e(x)+J^T*delta_x中的J
+        void linearizeOplus() override // 重写线性化函数，即得到泰勒展开e(x+delta_x)=e(x)+J^T*delta_x中的J
         {
             const VertexPose *v = static_cast<VertexPose *>(_vertices[0]);
             Sophus::SE3d T = v->estimate();
@@ -145,9 +145,9 @@ namespace rgbd_slam {
                     J_2[0], J_2[1], J_2[2], J_2[3], J_2[4], J_2[5];
         }
 
-        bool read(std::istream &in) override {}
+        bool read(std::istream &in) override {return true;}
 
-        bool write(std::ostream &out) const override {}
+        bool write(std::ostream &out) const override {return true;}
 
     private:
         Eigen::Matrix<double, 3, 1> point_position_ref_;
