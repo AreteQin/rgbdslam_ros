@@ -15,7 +15,7 @@ int main(int argc, char **argv) {
     geometry_msgs::TransformStamped transformStamped;
 
     std::shared_ptr<rgbd_slam::Dataset> dataset(
-            new rgbd_slam::Dataset("/home/qin/Downloads/training/sfm_house_loop"));
+            new rgbd_slam::Dataset("/home/qin/Downloads/training/mannequin_face_2"));
 
     if (dataset->Initialize()) {
         std::shared_ptr<rgbd_slam::VisualOdometry> vo(

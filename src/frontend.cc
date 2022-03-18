@@ -87,69 +87,7 @@ namespace rgbd_slam {
         return last_kf_->num_good_points_;
     }
 
-    int Frontend::EstimateCurrentPose() {
-
-        // K
-        Eigen::Matrix<double, 3, 3> K = camera_color_->K();
-
-        // edges counter
-        int edge_index = 1;
-
-        ceres::Problem problem;
-        for (size_t i = 0; i < last_kf_->features_.size(); ++i) {
-            ceres::CostFunction *cost_function;
-            Eigen::Vector2d pixel_ref(last_kf_->features_[i]->pixel_position_.pt.x,
-                                      last_kf_->features_[i]->pixel_position_.pt.y);
-            cost_function = new DepthIlluminationError(K,
-                                                       pixel_ref,
-                                                       last_kf_->color_ref_[i],
-                                                       last_kf_->depth_ref_[i],
-                                                       current_frame_->color_image_,
-                                                       current_frame_->depth_image_);
-            problem.AddResidualBlock(cost_function, nullptr, relative_motion_.log().data());
-            edge_index++;
-        }
-        //LOG(INFO)<<"added "<<edge_index<<" edge.";
-
-        ceres::Solver::Options options;
-        options.dynamic_sparsity = true;
-        options.max_num_iterations = MAX_OPTIMIZATION_ITERATION;
-        options.sparse_linear_algebra_library_type = ceres::SUITE_SPARSE;
-        options.minimizer_type = ceres::TRUST_REGION;
-        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-        options.trust_region_strategy_type = ceres::DOGLEG;
-        options.minimizer_progress_to_stdout = false;
-        options.dogleg_type = ceres::SUBSPACE_DOGLEG;
-
-        ceres::Solver::Summary summary;
-        ceres::Solve(options, &problem, &summary);
-        LOG(INFO)<<"added "<<edge_index<<" edge.";
-        //LOG(INFO) << summary.BriefReport();
-
-        LOG(INFO) << "estimated pose: \n" << Sophus::SE3d::exp(relative_motion_.log()).matrix();
-
-        current_frame_->SetPosition(relative_motion_ * last_kf_->Pose());
-
-        return edge_index;
-    }
-
 //    int Frontend::EstimateCurrentPose() {
-//        // 构建图优化，先设定g2o
-//        typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 1>> BlockSolverType;
-//        typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
-//        // 梯度下降方法，可以从GN, LM, DogLeg 中选
-//        auto solver = new g2o::OptimizationAlgorithmGaussNewton(
-//                g2o::make_unique<BlockSolverType>(
-//                        g2o::make_unique<LinearSolverType>()));
-//        g2o::SparseOptimizer optimizer; // 图模型
-//        optimizer.setAlgorithm(solver); // 设置求解器
-//        optimizer.setVerbose(false);    // 打开调试输出
-//
-//        VertexPose *vertex_pose = new VertexPose(); // camera vertex_pose
-//        vertex_pose->setId(0);
-//        vertex_pose->setEstimate(relative_motion_);
-//        // vertex_pose->setMarginalized(true); // enable marginalization
-//        optimizer.addVertex(vertex_pose);
 //
 //        // K
 //        Eigen::Matrix<double, 3, 3> K = camera_color_->K();
@@ -157,40 +95,102 @@ namespace rgbd_slam {
 //        // edges counter
 //        int edge_index = 1;
 //
+//        ceres::Problem problem;
 //        for (size_t i = 0; i < last_kf_->features_.size(); ++i) {
+//            ceres::CostFunction *cost_function;
 //            Eigen::Vector2d pixel_ref(last_kf_->features_[i]->pixel_position_.pt.x,
 //                                      last_kf_->features_[i]->pixel_position_.pt.y);
-//            EdgeProjectionPoseOnly *edge = new EdgeProjectionPoseOnly(K,
-//                                                                      pixel_ref,
-//                                                                      last_kf_->color_ref_[i],
-//                                                                      last_kf_->depth_ref_[i],
-//                                                                      current_frame_->color_image_,
-//                                                                      current_frame_->depth_image_);
-//            edge->setId(edge_index);
-//            edge->setVertex(0, vertex_pose);
-//
-//            // 深度乘以归一化坐标就得到了相机坐标系下的三维点
-//            Eigen::Vector3d position_in_ref_cam =
-//                    last_kf_->depth_ref_[i] * Eigen::Vector3d(
-//                            (pixel_ref[0] - K_()(0, 2)) / K_()(0, 0),
-//                            (pixel_ref[1] - K_()(1, 2)) / K_()(1, 1),
-//                            1);
-//
-//            Eigen::Vector3d position_in_cur_cam =
-//                    vertex_pose->estimate() * position_in_ref_cam;
-//            Eigen::Matrix<double, 2, 1> measurements;
-//            measurements << last_kf_->color_ref_[i], position_in_cur_cam[2];
-//            edge->setMeasurement(measurements);
-//            edge->setInformation(Eigen::Matrix<double, 2, 2>::Identity());
-//            optimizer.addEdge(edge);
+//            cost_function = new DepthIlluminationError(K,
+//                                                       pixel_ref,
+//                                                       last_kf_->color_ref_[i],
+//                                                       last_kf_->depth_ref_[i],
+//                                                       current_frame_->color_image_,
+//                                                       current_frame_->depth_image_);
+//            problem.AddResidualBlock(cost_function, nullptr, relative_motion_.log().data());
 //            edge_index++;
 //        }
-//        LOG(INFO) << "start optimization";
-//        optimizer.initializeOptimization();
-//        optimizer.optimize(MAX_OPTIMIZATION_ITERATION);
-//        current_frame_->SetPosition(vertex_pose->estimate() * last_kf_->Pose());
+//        //LOG(INFO)<<"added "<<edge_index<<" edge.";
+//
+//        ceres::Solver::Options options;
+//        options.dynamic_sparsity = true;
+//        options.max_num_iterations = MAX_OPTIMIZATION_ITERATION;
+//        options.sparse_linear_algebra_library_type = ceres::SUITE_SPARSE;
+//        options.minimizer_type = ceres::TRUST_REGION;
+//        options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+//        options.trust_region_strategy_type = ceres::DOGLEG;
+//        options.minimizer_progress_to_stdout = false;
+//        options.dogleg_type = ceres::SUBSPACE_DOGLEG;
+//
+//        ceres::Solver::Summary summary;
+//        ceres::Solve(options, &problem, &summary);
+//        LOG(INFO)<<"added "<<edge_index<<" edge.";
+//        //LOG(INFO) << summary.BriefReport();
+//
+//        LOG(INFO) << "estimated pose: \n" << Sophus::SE3d::exp(relative_motion_.log()).matrix();
+//
+//        current_frame_->SetPosition(relative_motion_ * last_kf_->Pose());
+//
 //        return edge_index;
 //    }
+
+    int Frontend::EstimateCurrentPose() {
+        // 构建图优化，先设定g2o
+        typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 1>> BlockSolverType;
+        typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
+        // 梯度下降方法，可以从GN, LM, DogLeg 中选
+        auto solver = new g2o::OptimizationAlgorithmGaussNewton(
+                g2o::make_unique<BlockSolverType>(
+                        g2o::make_unique<LinearSolverType>()));
+        g2o::SparseOptimizer optimizer; // 图模型
+        optimizer.setAlgorithm(solver); // 设置求解器
+        optimizer.setVerbose(false);    // 打开调试输出
+
+        VertexPose *vertex_pose = new VertexPose(); // camera vertex_pose
+        vertex_pose->setId(0);
+        vertex_pose->setEstimate(relative_motion_);
+        // vertex_pose->setMarginalized(true); // enable marginalization
+        optimizer.addVertex(vertex_pose);
+
+        // K
+        Eigen::Matrix<double, 3, 3> K = camera_color_->K();
+
+        // edges counter
+        int edge_index = 1;
+
+        for (size_t i = 0; i < last_kf_->features_.size(); ++i) {
+            Eigen::Vector2d pixel_ref(last_kf_->features_[i]->pixel_position_.pt.x,
+                                      last_kf_->features_[i]->pixel_position_.pt.y);
+            EdgeProjectionPoseOnly *edge = new EdgeProjectionPoseOnly(K,
+                                                                      pixel_ref,
+                                                                      last_kf_->color_ref_[i],
+                                                                      last_kf_->depth_ref_[i],
+                                                                      current_frame_->color_image_,
+                                                                      current_frame_->depth_image_);
+            edge->setId(edge_index);
+            edge->setVertex(0, vertex_pose);
+
+            // 深度乘以归一化坐标就得到了相机坐标系下的三维点
+            Eigen::Vector3d position_in_ref_cam =
+                    last_kf_->depth_ref_[i] * Eigen::Vector3d(
+                            (pixel_ref[0] - K_()(0, 2)) / K_()(0, 0),
+                            (pixel_ref[1] - K_()(1, 2)) / K_()(1, 1),
+                            1);
+
+            Eigen::Vector3d position_in_cur_cam =
+                    vertex_pose->estimate() * position_in_ref_cam;
+            Eigen::Matrix<double, 2, 1> measurements;
+            measurements << last_kf_->color_ref_[i], position_in_cur_cam[2];
+            edge->setMeasurement(measurements);
+            edge->setInformation(Eigen::Matrix<double, 2, 2>::Identity());
+            optimizer.addEdge(edge);
+            edge_index++;
+        }
+        LOG(INFO) << "start optimization";
+        optimizer.initializeOptimization();
+        optimizer.optimize(MAX_OPTIMIZATION_ITERATION);
+        current_frame_->SetPosition(vertex_pose->estimate() * last_kf_->Pose());
+        return edge_index;
+    }
 
 //    bool Frontend::BuildInitialMap() {
 //        for (unsigned int i = 0; i < ref_frame_->num_good_points_; ++i) {
