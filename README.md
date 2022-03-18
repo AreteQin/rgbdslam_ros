@@ -1,4 +1,4 @@
-This project eveloped an algorithm for RGB-D cameras to locate camera itself and to map the environment using octomap.
+This project eveloped an algorithm for RGB-D cameras to locate camera itself and to map the environment using octomap. It is tested on Ubuntu 20 and ROS noetic.
 
 The dataset used in this repo is from ETH3D, which can be found at:
 https://www.eth3d.net/slam_datasets
