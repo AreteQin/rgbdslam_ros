@@ -139,8 +139,8 @@ namespace rgbd_slam {
         typedef g2o::LinearSolverDense<BlockSolverType::PoseMatrixType> LinearSolverType; // 线性求解器类型
         // 梯度下降方法，可以从GN, LM, DogLeg 中选
         auto solver = new g2o::OptimizationAlgorithmGaussNewton(
-                g2o::make_unique<BlockSolverType>(
-                        g2o::make_unique<LinearSolverType>()));
+                std::make_unique<BlockSolverType>(
+                        std::make_unique<LinearSolverType>()));
         g2o::SparseOptimizer optimizer; // 图模型
         optimizer.setAlgorithm(solver); // 设置求解器
         optimizer.setVerbose(false);    // 打开调试输出

@@ -32,8 +32,37 @@ find_package(G2O REQUIRED)
 include_directories(${G2O_INCLUDE_DIRS})
 find_package(PCL REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
-Find_Package(Ceres REQUIRED)
 
+find_package(CUDA REQUIRED)
+if (CUDA_FOUND)
+        message("-- Found CUDA version ${CUDA_VERSION} installed in: "
+                "${CUDA_TOOLKIT_ROOT_DIR} via legacy (< 3.17) CMake module. "
+                "Using the legacy CMake module means that any installation of "
+                "Ceres will require that the CUDA libraries be installed in a "
+                "location included in the LD_LIBRARY_PATH.")
+        enable_language(CUDA)
+
+        macro(DECLARE_IMPORTED_CUDA_TARGET COMPONENT)
+                add_library(CUDA::${COMPONENT} INTERFACE IMPORTED)
+                target_include_directories(
+                        CUDA::${COMPONENT} INTERFACE ${CUDA_INCLUDE_DIRS})
+                target_link_libraries(
+                        CUDA::${COMPONENT} INTERFACE ${CUDA_${COMPONENT}_LIBRARY} ${ARGN})
+        endmacro()
+
+        declare_imported_cuda_target(cublas)
+        declare_imported_cuda_target(cusolver)
+        declare_imported_cuda_target(cusparse)
+        declare_imported_cuda_target(cudart ${CUDA_LIBRARIES})
+
+        set(CUDAToolkit_BIN_DIR ${CUDA_TOOLKIT_ROOT_DIR}/bin)
+else (CUDA_FOUND)
+        message("-- Did not find CUDA, disabling CUDA support.")
+        update_cache_variable(USE_CUDA OFF)
+endif (CUDA_FOUND)
+set(CUDA_ADD_CUBLAS_TO_TARGET ON)
+
+Find_Package(Ceres REQUIRED)
 
 set(THIRD_PARTY_LIBS
         ${OpenCV_LIBS}
