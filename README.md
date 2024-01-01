@@ -8,3 +8,8 @@ An input image pair is shown below,
 ![](./depth.png)
 and an output octomap is shown as:
 ![](./octomap.png)
+
+## Dependencies
+```Bash
+sudo apt install ros-noetic-octomap-server
+```
