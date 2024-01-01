@@ -225,6 +225,9 @@ target_link_libraries(${PROJECT_NAME}_node
         ${catkin_LIBRARIES}
         )
 
+add_executable(tf2_broadcaster src/tf2_broadcaster.cpp)
+target_link_libraries(tf2_broadcaster ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############
